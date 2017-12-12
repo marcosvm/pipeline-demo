@@ -69,7 +69,7 @@ func readDatabase() chan t {
 
 // START READ ARCHIVE OMIT
 func readArchive(work <-chan t, done <-chan struct{}) chan t {
-	out := make(chan t, 50)
+	out := make(chan t, 50) // Oo, I learned from Guido that there's a bug in this code
 	go func(input <-chan t, output chan<- t, done <-chan struct{}) {
 		defer close(out)
 		for item := range input {
