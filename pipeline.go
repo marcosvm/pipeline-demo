@@ -41,12 +41,12 @@ func run() {
 	done := make(chan struct{}) // HL
 	defer close(done)           // HL
 
-	ids := readDatabase()
-	processed := readArchive(ids, done)
-	written := writeToArchive(processed, done)
+	items := readDatabase()
+	read := readArchive(items, done)
+	written := writeToArchive(read, done)
 
-	for id := range written {
-		log.Printf("%s was processed", id)
+	for item := range written {
+		log.Printf("%s was processed", item)
 	}
 }
 
@@ -56,9 +56,9 @@ func run() {
 func readDatabase() chan t {
 	out := make(chan t) // HL
 	go func(output chan<- t) {
-		for _, v := range store {
-			v = (t)(fmt.Sprintf("%s|database", v))
-			output <- v // HL
+		for _, item := range store {
+			item = process(item, "database")
+			output <- item // HL
 		}
 		close(output)
 	}(out)
@@ -69,13 +69,13 @@ func readDatabase() chan t {
 
 // START READ ARCHIVE OMIT
 func readArchive(work <-chan t, done <-chan struct{}) chan t {
-	out := make(chan t, 50) // arbitrary number of slots for unbuffered channel
+	out := make(chan t, 50)
 	go func(input <-chan t, output chan<- t, done <-chan struct{}) {
 		defer close(out)
-		for id := range input {
-			id = (t)(fmt.Sprintf("%s|archive", id)) // HL
+		for item := range input {
+			item = process(item, "archive") // HL
 			select {
-			case output <- id: // HL
+			case output <- item: // HL
 			case <-done: // HL
 				return // HL
 			}
@@ -140,12 +140,12 @@ func doWrite(work <-chan t, done <-chan struct{}) chan t {
 	out := make(chan t)
 	go func() {
 		defer close(out)
-		for id := range work {
-			id = (t)(fmt.Sprintf("%s|written", id))
+		for item := range work {
+			item = process(item, "written")
 			sleep := rand.Int63n(100)
 			time.Sleep(time.Duration(sleep) * time.Millisecond)
 			select {
-			case out <- id:
+			case out <- item:
 			case <-done:
 				return
 			}
@@ -155,3 +155,7 @@ func doWrite(work <-chan t, done <-chan struct{}) chan t {
 }
 
 // END DO WRITE ARCHIVE OMIT
+
+func process(input, stage t) t {
+	return (t)(fmt.Sprintf("%s|%s", input, stage))
+}
